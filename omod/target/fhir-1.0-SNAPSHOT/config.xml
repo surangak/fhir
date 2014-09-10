@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<module configVersion="1.2">
+
+	<!-- Module Properties -->
+	<id>fhir</id>
+	<name>FHIR Module</name>
+	<version>1.0-SNAPSHOT</version>
+	<package>org.openmrs.module.fhir</package>
+	<author>snkasthu</author>
+	<description>
+		Helps to start writing OpenMRS modules
+	</description>
+	<updateURL>https://modules.openmrs.org/modules/download/fhir/update.rdf</updateURL>
+	<require_version>1.9.8</require_version>
+	<!-- / Module Properties -->
+
+    <require_modules>
+        <require_module version="2.0">org.openmrs.module.webservices.rest</require_module>
+    </require_modules>
+	
+	<!-- Module Activator -->
+	<activator>org.openmrs.module.fhir.FHIRActivator</activator>
+	
+	
+	<!-- Adds link to admin page -->
+	<extension>
+		<point>org.openmrs.admin.list</point>
+		<class>org.openmrs.module.fhir.extension.html.AdminList</class>
+	</extension>
+	
+	<!-- Maps hibernate file's, if present -->
+	<mappingFiles>
+				
+		FHIR.hbm.xml
+				
+	</mappingFiles>
+
+	<!-- Internationalization -->
+	<!-- All message codes should start with fhir. -->
+	<messages>
+		<lang>en</lang>
+		<file>messages.properties</file>
+	</messages>
+	<messages>
+		<lang>fr</lang>
+		<file>messages_fr.properties</file>
+	</messages>
+	<messages>
+		<lang>es</lang>
+		<file>messages_es.properties</file>
+	</messages>
+	<!-- /Internationalization -->
+
+</module>
+

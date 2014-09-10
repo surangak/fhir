@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/fhir.iml" filepath="$PROJECT_DIR$/fhir.iml" />
+      <module fileurl="file://$PROJECT_DIR$/api/fhir-api.iml" filepath="$PROJECT_DIR$/api/fhir-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/omod/fhir-omod.iml" filepath="$PROJECT_DIR$/omod/fhir-omod.iml" />
+    </modules>
+  </component>
+</project>
+
