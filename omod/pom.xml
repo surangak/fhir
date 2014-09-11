@@ -23,6 +23,16 @@
 		</dependency> 
 		-->
 
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+        </dependency>
+
+       <!-- <dependency>
+            <groupId>com.phloc</groupId>
+            <artifactId>phloc-schematron-validator</artifactId>
+        </dependency> -->
+
 
         <dependency>
             <groupId>ca.uhn.hapi.fhir</groupId>

@@ -82,7 +82,8 @@ public class FHIRObservationResource extends DelegatingCrudResource {
 
     @Override
     public Object retrieve(String uuid, RequestContext context) throws ResponseException {
-        Object delegate = getByUniqueId(uuid);
+        String contentType = context.getRequest().getContentType();
+        Object delegate = getByUniqueId(uuid, contentType);
         if (delegate == null)
             throw new ObjectNotFoundException();
 
@@ -108,13 +109,19 @@ public class FHIRObservationResource extends DelegatingCrudResource {
     /**
      * @see org.openmrs.module.webservices.rest.web.resource.impl.BaseDelegatingResource#getByUniqueId(java.lang.String)
      */
-    @Override
-    public String getByUniqueId(String uniqueId) {
+   // @Override
+    public String getByUniqueId(String uniqueId, String contentType) {
         Obs obs = Context.getObsService().getObsByUuid(uniqueId);
-        System.out.println(FHIRPatientUtil.generateObs(obs));
+        System.out.println(FHIRPatientUtil.generateObs(obs,contentType));
 
-        return FHIRPatientUtil.generateObs(obs);
+        return FHIRPatientUtil.generateObs(obs,contentType);
     }
+
+    @Override
+    public Object getByUniqueId(String s) {
+        return null;
+    }
+
 
     @Override
     protected void delete(Object o, String s, RequestContext requestContext) throws ResponseException {

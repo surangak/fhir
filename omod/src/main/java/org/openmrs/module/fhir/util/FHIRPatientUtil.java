@@ -6,12 +6,11 @@ import ca.uhn.fhir.model.dstu.composite.*;
 import ca.uhn.fhir.model.dstu.resource.Observation;
 import ca.uhn.fhir.model.dstu.resource.Patient;
 import ca.uhn.fhir.model.dstu.valueset.*;
-import ca.uhn.fhir.model.primitive.BooleanDt;
-import ca.uhn.fhir.model.primitive.DateTimeDt;
-import ca.uhn.fhir.model.primitive.IdDt;
-import ca.uhn.fhir.model.primitive.StringDt;
+import ca.uhn.fhir.model.primitive.*;
+import ca.uhn.fhir.narrative.DefaultThymeleafNarrativeGenerator;
 import ca.uhn.fhir.parser.IParser;
-import ca.uhn.hl7v2.model.v21.segment.ADD;
+import ca.uhn.fhir.validation.FhirValidator;
+import ca.uhn.fhir.validation.ValidationFailureException;
 import org.openmrs.*;
 import org.openmrs.api.context.Context;
 
@@ -34,14 +33,13 @@ public class FHIRPatientUtil {
 
     public static String generatePatient(org.openmrs.Patient omrsPatient, String contentType) {
         Patient patient = new Patient();
-        System.out.println("in get message");
         IdDt uuid = new IdDt();
         uuid.setValue(omrsPatient.getUuid());
         patient.setId(uuid);
 
 
         for (PatientIdentifier identifier : omrsPatient.getIdentifiers()) {
-            String uri = Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/patientidentifiertype/" + identifier.getIdentifierType().getUuid();
+            String uri = "http://" + Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/patientidentifiertype/" + identifier.getIdentifierType().getUuid();
             if (identifier.isPreferred()) {
 
                 patient.addIdentifier().setUse(IdentifierUseEnum.USUAL).setSystem(uri).setValue(identifier.getIdentifier()).setLabel(identifier.getIdentifierType().getName());
@@ -96,10 +94,13 @@ public class FHIRPatientUtil {
         patient.setName(humanNameDts);
 
 
-        if (omrsPatient.getGender().equals("M"))
+        if (omrsPatient.getGender().equals("M")) {
             patient.setGender(AdministrativeGenderCodesEnum.M);
-        if (omrsPatient.getGender().equals("F"))
+
+        }if (omrsPatient.getGender().equals("F")) {
             patient.setGender(AdministrativeGenderCodesEnum.F);
+
+        }
 
         List<AddressDt> fhirAddresses = patient.getAddress();
 
@@ -154,7 +155,23 @@ public class FHIRPatientUtil {
         patient.setTelecom(dts);
 
         FhirContext ctx = new FhirContext();
-        // ctx.setNarrativeGenerator(new DefaultThymeleafNarrativeGenerator());
+         ctx.setNarrativeGenerator(new DefaultThymeleafNarrativeGenerator());
+
+
+        // Request a validator and apply it
+       /* FhirValidator val = ctx.newValidator();
+        try {
+            val.validate(patient);
+            System.out.println("Validation passed");
+
+        } catch (ValidationFailureException e) {
+          // We failed validation!
+
+           System.out.println("Validation failed");
+           String results = ctx.newXmlParser().setPrettyPrint(true).encodeResourceToString(e.getOperationOutcome());
+           System.out.println(results);
+        }*/
+
 
         IParser jsonParser = ctx.newJsonParser();
         IParser xmlParser = ctx.newXmlParser();
@@ -180,29 +197,83 @@ public class FHIRPatientUtil {
     }
 
 
-    public static String generateObs(Obs obs) {
+    public static String generateObs(Obs obs, String contentType) {
 
         Observation observation = new Observation();
         observation.setId(obs.getUuid());
+
+        InstantDt instant = new InstantDt();
+        instant.setValue(obs.getDateCreated());
+
+        observation.setIssued(instant);
+
+        observation.setComments(obs.getComment());
+
+        ResourceReferenceDt patientReference = new ResourceReferenceDt();
+
+        PersonName name = Context.getPatientService().getPatientByUuid(obs.getPerson().getUuid()).getPersonName();
+        String nameDisplay = name.getGivenName() + " " + name.getFamilyName();
+        nameDisplay += "(" + Context.getPatientService().getPatientByUuid(obs.getPerson().getUuid()).getPatientIdentifier().getIdentifier() + ")";
+
+        patientReference.setDisplay(nameDisplay);
+        String patientUri = "http://" + Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/fhirpatient/" + obs.getPerson().getUuid();
+
+        //patientReference.setReference("ref");
+        IdDt patientRef = new IdDt();
+        patientRef.setValue(patientUri);
+        patientReference.setReference(patientRef);
+
+        observation.setSubject(patientReference);
+
+
+
+        List<ResourceReferenceDt> performers = new ArrayList<ResourceReferenceDt>();
+
+        for(EncounterProvider provider : obs.getEncounter().getEncounterProviders()){
+            ResourceReferenceDt providerReference = new ResourceReferenceDt();
+            providerReference.setDisplay(provider.getProvider().getName() + "(" + provider.getProvider().getProviderId() + ")");
+            //patientReference.setReference("ref");
+            IdDt providerRef = new IdDt();
+            String providerUri = "http://" + Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/fhirprovider/" + provider.getUuid();
+
+            providerRef.setValue(providerUri);
+            providerReference.setReference(providerRef);
+
+            performers.add(providerReference);
+        }
+
+        observation.setPerformer(performers);
+
+
 
         Collection<ConceptMap> mappings = obs.getConcept().getConceptMappings();
         CodeableConceptDt dt = observation.getName();
         List<CodingDt> dts = new ArrayList<CodingDt>();
 
         for (ConceptMap map : mappings) {
+
+            String display = map.getConceptReferenceTerm().getName();
+            if(display == null)
+                display = map.getConceptReferenceTerm().getUuid();
+
             System.out.println(map.getSource());
             System.out.println(map.getSource().getName());
             if (map.getSource().getName().equals("LOINC"))
-                dts.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.loinc));
+                dts.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.loinc));
             if (map.getSource().getName().equals("SNOMED"))
-                dts.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.snomed));
+                dts.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.snomed));
             if (map.getSource().getName().equals("CIEL"))
-                dts.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.ciel));
+                dts.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.ciel));
+            else{
+                String uri = "http://" + Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/fhirconceptsource/" + map.getSource().getUuid();
+                dts.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(map.getSource().toString()).setSystem(uri));
+
+            }
 
         }
         dt.setCoding(dts);
 
-        if (obs.getConcept().getDatatype().getHl7Abbreviation().equals("NM")) {
+        if (obs.getConcept().isNumeric()) {
 
             obs.getConcept().isNumeric();
             ((ConceptNumeric)obs.getConcept()).getHiCritical();
@@ -215,9 +286,11 @@ public class FHIRPatientUtil {
 
            // q.setCode(obs.get);
 
-            observation.getReferenceRangeFirstRep().setLow(100);
+            observation.getReferenceRangeFirstRep().setLow(((ConceptNumeric)obs.getConcept()).getLowCritical());
 
-            observation.getReferenceRangeFirstRep().setHigh(200);
+            observation.getReferenceRangeFirstRep().setHigh(((ConceptNumeric)obs.getConcept()).getHiCritical());
+
+
 
             observation.setValue(q);
 
@@ -235,6 +308,7 @@ public class FHIRPatientUtil {
             value.setValue(obs.getValueBoolean());
             observation.setValue(value);
 
+
         }
 
         if (obs.getConcept().getDatatype().getHl7Abbreviation().equals("CWE")) {
@@ -245,15 +319,22 @@ public class FHIRPatientUtil {
 
             for (ConceptMap map : valueMappings) {
 
-               map.getConceptReferenceTerm().getName();
+               String display = map.getConceptReferenceTerm().getName();
+               if(display == null)
+                   display = map.getConceptReferenceTerm().toString();
+
                 System.out.println(map.getSource().getName());
                 if (map.getSource().getName().equals("LOINC"))
-                    values.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.loinc));
+                    values.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.loinc));
                 if (map.getSource().getName().equals("SNOMED"))
-                    values.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.snomed));
+                    values.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.snomed));
                 if (map.getSource().getName().equals("CIEL"))
-                    values.add(new CodingDt().setCode("code").setDisplay("display").setSystem(Constants.ciel));
+                    values.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(Constants.ciel));
+                else{
+                    String uri = "http://" + Context.getAdministrationService().getSystemVariables().get("OPENMRS_HOSTNAME") + "/ws/rest/v1/fhirconceptsource/" + map.getSource().getUuid();
+                    dts.add(new CodingDt().setCode(map.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(uri));
 
+                }
 
             }
 
@@ -267,10 +348,28 @@ public class FHIRPatientUtil {
         observation.setReliability(ObservationReliabilityEnum.OK);
 
         FhirContext ctx = new FhirContext();
+        ctx.setNarrativeGenerator(new DefaultThymeleafNarrativeGenerator());
+
         IParser jsonParser = ctx.newJsonParser();
-        jsonParser.setPrettyPrint(true);
-        String encoded = jsonParser.encodeResourceToString(observation);
-        System.out.println(encoded);
+        IParser xmlParser = ctx.newXmlParser();
+
+        String encoded = null;
+
+        if(contentType.equals("application/xml+fhir")) {
+
+            xmlParser.setPrettyPrint(true);
+            encoded = xmlParser.encodeResourceToString(observation);
+            System.out.println(encoded);
+        }
+
+        else {
+
+            jsonParser.setPrettyPrint(true);
+            encoded = jsonParser.encodeResourceToString(observation);
+            System.out.println(encoded);
+        }
+
         return encoded;
+
     }
 }
