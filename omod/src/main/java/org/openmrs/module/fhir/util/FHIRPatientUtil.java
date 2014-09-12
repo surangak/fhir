@@ -159,7 +159,7 @@ public class FHIRPatientUtil {
 
 
         // Request a validator and apply it
-       /* FhirValidator val = ctx.newValidator();
+        /*FhirValidator val = ctx.newValidator();
         try {
             val.validate(patient);
             System.out.println("Validation passed");
@@ -309,6 +309,18 @@ public class FHIRPatientUtil {
             observation.setValue(value);
 
 
+        }
+
+        if(obs.getConcept().getDatatype().getHl7Abbreviation().equals("TS")){
+            DateTimeDt datetime = new DateTimeDt();
+            datetime.setValue(obs.getValueDatetime());
+            observation.setValue(datetime);
+        }
+
+        if(obs.getConcept().getDatatype().getHl7Abbreviation().equals("DT")){
+            DateDt date = new DateDt();
+            date.setValue(obs.getValueDate());
+            observation.setValue(date);
         }
 
         if (obs.getConcept().getDatatype().getHl7Abbreviation().equals("CWE")) {

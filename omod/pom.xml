@@ -28,7 +28,7 @@
             <artifactId>thymeleaf</artifactId>
         </dependency>
 
-       <!-- <dependency>
+       <!--<dependency>
             <groupId>com.phloc</groupId>
             <artifactId>phloc-schematron-validator</artifactId>
         </dependency> -->
